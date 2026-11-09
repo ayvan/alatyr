@@ -135,15 +135,18 @@ func Open(path string, subnet netip.Prefix, defaults Settings, routing Routing) 
 	if s.d.Servers == nil {
 		s.d.Servers = map[string]*Server{}
 	}
+	save := s.migrated
 	if s.d.Settings == nil {
+		// Saved right away so that random default ports survive restarts.
 		d := defaults.clone()
 		s.d.Settings = &d
+		save = true
 	}
 	if s.d.Routing == nil {
 		r := routing.clone()
 		s.d.Routing = &r
 	}
-	if s.migrated {
+	if save {
 		if err := s.saveLocked(); err != nil {
 			return nil, err
 		}

@@ -3,6 +3,8 @@ package config
 
 import (
 	"fmt"
+	"math/rand/v2"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -32,6 +34,8 @@ type Config struct {
 	// MTU for user configs (default: upstream MTU or 1280).
 	MTU int `yaml:"mtu"`
 	// Ports maps protocol (awg1, awg2, awg3) to UDP listen port; 0 disables.
+	// Without the section every protocol gets a random free port (used only
+	// on the first start, then the saved settings win).
 	Ports map[string]int `yaml:"ports"`
 	// ListsDir caches downloaded rule subscriptions.
 	ListsDir string `yaml:"lists_dir"`
@@ -80,7 +84,7 @@ func Load(path string) (*Config, error) {
 		c.LogLevel = "info"
 	}
 	if c.Ports == nil {
-		c.Ports = map[string]int{awgconf.ProtoAWG1: 51821, awgconf.ProtoAWG2: 51822, awgconf.ProtoAWG3: 51823}
+		c.Ports = RandomPorts(awgconf.ProtoAWG1, awgconf.ProtoAWG2, awgconf.ProtoAWG3)
 	}
 	for proto, port := range c.Ports {
 		if awgconf.ProtocolTitle(proto) == proto {
@@ -113,4 +117,28 @@ func (c *Config) SubnetPrefix() netip.Prefix {
 // Gateway returns the relay's own address in the users' subnet.
 func (c *Config) Gateway() netip.Addr {
 	return c.SubnetPrefix().Addr().Next()
+}
+
+// RandomPorts picks a distinct free UDP port in 20000-59999 for each protocol.
+// Fixed well-known ports are easy to fingerprint and to block.
+func RandomPorts(protos ...string) map[string]int {
+	out := map[string]int{}
+	used := map[int]bool{}
+	for _, proto := range protos {
+		for try := 0; ; try++ {
+			port := 20000 + rand.IntN(40000)
+			if used[port] {
+				continue
+			}
+			if c, err := net.ListenUDP("udp", &net.UDPAddr{Port: port}); err == nil {
+				c.Close()
+			} else if try < 50 {
+				continue
+			}
+			used[port] = true
+			out[proto] = port
+			break
+		}
+	}
+	return out
 }
