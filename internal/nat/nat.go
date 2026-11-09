@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -82,6 +83,7 @@ type NAT struct {
 	up      func(pkt []byte)
 	resLo   uint16 // outside ports resLo..resHi belong to someone else
 	resHi   uint16
+	flows   atomic.Int64 // TCP/UDP mappings, see Owns
 	now     func() time.Time
 	stop    chan struct{}
 }
@@ -144,6 +146,7 @@ func (n *NAT) gc() {
 		if now.Sub(e.last) > e.timeout() {
 			delete(n.byIn, k)
 			delete(n.byOut, outsideKey{e.proto, e.mapped})
+			n.counted(e, -1)
 		}
 	}
 	for k, f := range n.frags {
@@ -151,6 +154,23 @@ func (n *NAT) gc() {
 			delete(n.frags, k)
 		}
 	}
+}
+
+func (n *NAT) counted(e *entry, d int64) {
+	if e.proto != protoICMP {
+		n.flows.Add(d)
+	}
+}
+
+// Owns reports whether a user's TCP/UDP source port has a live mapping, so
+// that its packets keep going through NAT after a mode switch.
+func (n *NAT) Owns(proto uint8, src netip.AddrPort) bool {
+	if n.flows.Load() == 0 {
+		return false
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.byIn[insideKey{proto, src.Addr().As4(), src.Port()}] != nil
 }
 
 // RemoveIP drops all mappings of a user address (e.g. a removed user).
@@ -162,6 +182,7 @@ func (n *NAT) RemoveIP(ip netip.Addr) {
 		if e.ip == a {
 			delete(n.byIn, k)
 			delete(n.byOut, outsideKey{e.proto, e.mapped})
+			n.counted(e, -1)
 		}
 	}
 }
@@ -268,6 +289,7 @@ func (n *NAT) FromInside(pkt []byte, sink Sink) {
 		e = &entry{proto: proto, ip: src, port: port, mapped: mapped}
 		n.byIn[k] = e
 		n.byOut[outsideKey{proto, mapped}] = e
+		n.counted(e, 1)
 	}
 	e.sink = sink
 	e.last = n.now()

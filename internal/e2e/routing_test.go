@@ -9,6 +9,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httptrace"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -260,5 +262,72 @@ func TestRouting(t *testing.T) {
 	if got := get(t, tnet.DialContext, "http://checkip.amazonaws.com/"); got != tunnelIP {
 		t.Errorf("full mode checkip: got %s want %s", got, tunnelIP)
 	}
+
+	// 11. Settings are applied without breaking running connections: a
+	// keep-alive connection survives an edit of my additions, a
+	// subscription update and mode switches, keeping the path it started
+	// on; new connections follow the new settings.
+	setRouting(func(r *store.Routing) {
+		r.Mode, r.Direct, r.Tunnel = store.ModeLists, "", "api.ipify.org\n"
+	})
+	const trace = "http://speed.cloudflare.com/cdn-cgi/trace"
+	traceIP := func(body string) string {
+		for _, l := range strings.Split(body, "\n") {
+			if v, ok := strings.CutPrefix(l, "ip="); ok {
+				return v
+			}
+		}
+		return ""
+	}
+	directCF := traceIP(get(t, hostDial, trace))
+	keepAlive := func() *http.Client {
+		return &http.Client{Timeout: 20 * time.Second, Transport: &http.Transport{DialContext: tnet.DialContext}}
+	}
+	reused := func(c *http.Client, label, want string, first ...bool) {
+		t.Helper()
+		var again bool
+		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
+			GotConn: func(i httptrace.GotConnInfo) { again = i.Reused },
+		})
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, trace, nil)
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatalf("%s: %v", label, err)
+		}
+		b, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if got := traceIP(string(b)); (!again && len(first) == 0) || got != want {
+			t.Errorf("%s: reused=%v ip=%s, want reused connection with ip %s", label, again, got, want)
+		}
+	}
+	old := keepAlive()
+	reused(old, "before", directCF, true) // opens the connection
+	setRouting(func(r *store.Routing) { r.Tunnel += "speed.cloudflare.com\n" })
+	reused(old, "after editing my additions", directCF)
+	if got := traceIP(get(t, tnet.DialContext, trace)); got != tunnelIP {
+		t.Errorf("new connection after edit: %s want tunnel %s", got, tunnelIP)
+	}
+
+	lst := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		io.WriteString(w, "||example.org\n")
+	}))
+	defer lst.Close()
+	sub := store.Subscription{ID: "e2e", Name: "e2e", URL: lst.URL, Enabled: true, Action: "tunnel", Via: "direct"}
+	setRouting(func(r *store.Routing) { r.Subscriptions = []store.Subscription{sub} })
+	if err := a.Lists.Update(sub); err != nil {
+		t.Fatalf("subscription update: %v", err)
+	}
+	if d, _ := a.Router.Check("example.org"); d.Action != rules.Tunnel {
+		t.Errorf("subscription not applied: %+v", d)
+	}
+	reused(old, "after subscription update", directCF)
+
+	setRouting(func(r *store.Routing) { r.Mode = store.ModeFull })
+	reused(old, "after switching to full", directCF)
+	fullConn := keepAlive()
+	reused(fullConn, "full mode", tunnelIP, true)
+	setRouting(func(r *store.Routing) { r.Mode = store.ModeLists; r.Tunnel = "api.ipify.org\n" })
+	reused(fullConn, "full-mode connection after switching back", tunnelIP)
+	reused(old, "first connection after switching back", directCF)
 	t.Logf("stats: %+v", a.Router.Stats())
 }

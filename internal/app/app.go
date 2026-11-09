@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"sync"
 	"time"
 
 	"alatyr/internal/awgconf"
@@ -35,6 +36,8 @@ type App struct {
 	DNS    *dnssrv.Server
 	Lists  *lists.Manager
 	store  *store.Store
+
+	applyMu sync.Mutex
 }
 
 // New starts everything. Subscriptions without a cache are downloaded in
@@ -69,6 +72,10 @@ func New(o Options) (*App, error) {
 // Apply pushes the stored routing settings and loaded lists to the
 // running service.
 func (a *App) Apply() {
+	// Serialised: a list update and a save from the web UI must not race
+	// and leave the older configuration in place.
+	a.applyMu.Lock()
+	defer a.applyMu.Unlock()
 	r := a.store.Routing()
 	a.Relay.SetFullTunnel(r.Mode == store.ModeFull)
 	a.Router.Configure(r, a.Lists.Sources(r.Subscriptions))

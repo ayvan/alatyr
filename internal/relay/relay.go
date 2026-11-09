@@ -69,11 +69,31 @@ type Relay struct {
 	full     atomic.Bool
 	flows    atomic.Value // Flows
 	sinks    sync.Map     // [4]byte user address -> *memTun
+	live     sync.Map     // flowKey -> struct{}: flows handled by inStack
+	liveN    atomic.Int64
 	mu       sync.Mutex
 	applyMu  sync.Mutex
 	inbound  map[string]*inbound
 	stop     chan struct{}
 	stopOnce sync.Once
+}
+
+// flowKey identifies a user's TCP/UDP flow terminated in inStack.
+type flowKey struct {
+	proto    uint8
+	src, dst netip.AddrPort
+}
+
+// track registers a stack flow for its lifetime, so that a switch to "full
+// tunnel" does not steal its packets.
+func (r *Relay) track(proto uint8, src, dst netip.AddrPort) func() {
+	k := flowKey{proto, src, dst}
+	r.live.Store(k, struct{}{})
+	r.liveN.Add(1)
+	return func() {
+		r.live.Delete(k)
+		r.liveN.Add(-1)
+	}
 }
 
 type inbound struct {
@@ -145,6 +165,7 @@ func New(opts Options) (*Relay, error) {
 	r.inStack, err = stack.New(stack.Options{MTU: opts.MTU, Output: r.toUser,
 		TCP: func(q *stack.TCPRequest) {
 			if f, ok := r.flows.Load().(Flows); ok {
+				defer r.track(protoTCP, q.Src, q.Dst)()
 				f.HandleTCP(q)
 			} else {
 				q.Reject()
@@ -152,6 +173,7 @@ func New(opts Options) (*Relay, error) {
 		},
 		UDP: func(q *stack.UDPRequest) {
 			if f, ok := r.flows.Load().(Flows); ok {
+				defer r.track(protoUDP, q.Src, q.Dst)()
 				f.HandleUDP(q)
 			} else {
 				q.Conn.Close()
@@ -501,7 +523,7 @@ func (r *Relay) reresolveLoop() {
 func (r *Relay) SetFlows(f Flows) { r.flows.Store(f) }
 
 // SetFullTunnel switches between packet NAT for everything (true) and
-// per-flow routing (false). Running flows of the other path break.
+// per-flow routing (false). Running flows stay on the path they started on.
 func (r *Relay) SetFullTunnel(full bool) { r.full.Store(full) }
 
 // DialTCP connects through the tunnel.
@@ -531,11 +553,7 @@ func (r *Relay) fromUser(pkt []byte, sink *memTun) {
 		return
 	}
 	proto := pkt[9]
-	toStack := proto == protoTCP || proto == protoUDP
-	if r.full.Load() {
-		// Only the resolver on the gateway is served by the stack.
-		toStack = toStack && dst == r.opts.Gateway
-	}
+	toStack := (proto == protoTCP || proto == protoUDP) && r.stackPath(pkt, proto, src, dst)
 	if !toStack {
 		r.nat.FromInside(pkt, sink)
 		return
@@ -547,6 +565,34 @@ func (r *Relay) fromUser(pkt []byte, sink *memTun) {
 		r.sinks.Store(src.As4(), sink)
 	}
 	r.inStack.Inject(pkt)
+}
+
+// stackPath decides whether a user's TCP/UDP packet goes to inStack (per-flow
+// routing) or to NAT. Flows already running on one path stay there when the
+// mode changes, so settings can be applied without breaking connections.
+func (r *Relay) stackPath(pkt []byte, proto uint8, src, dst netip.Addr) bool {
+	full := r.full.Load()
+	if dst == r.opts.Gateway {
+		return true // our resolver
+	}
+	h := int(pkt[0]&0x0f) * 4
+	first := binary.BigEndian.Uint16(pkt[6:8])&0x1fff == 0
+	if !first || len(pkt) < h+4 || (proto == protoTCP && len(pkt) < h+14) {
+		return !full
+	}
+	l4 := pkt[h:]
+	sp := netip.AddrPortFrom(src, binary.BigEndian.Uint16(l4[0:2]))
+	if full {
+		if r.liveN.Load() == 0 {
+			return false
+		}
+		_, ok := r.live.Load(flowKey{proto, sp, netip.AddrPortFrom(dst, binary.BigEndian.Uint16(l4[2:4]))})
+		return ok
+	}
+	if proto == protoTCP && l4[13]&0x12 == 0x02 {
+		return true // a new connection (SYN) is always routed
+	}
+	return !r.nat.Owns(proto, sp)
 }
 
 // toUser delivers a packet from the inbound stack to the user's device.
