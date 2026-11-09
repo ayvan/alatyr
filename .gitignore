@@ -1,0 +1,14 @@
+# secrets / state
+vpn.conf
+alatyr-data.json
+alatyr-data.json.tmp
+relay-data.json
+lists-cache/
+*.log
+# build output
+/alatyr
+/alatyr.exe
+/awg-tester
+/awg-tester.exe
+/dist/
+/alatyr.zip

@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alatyr</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --fg:#1d2330; --muted:#6b7385; --line:#e3e6ec; --acc:#2f6fed; --ok:#1e9e5a; --bad:#d64545; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1d2129; --fg:#e6e9ef; --muted:#9098a8; --line:#2c323d; --acc:#5b8cff; --ok:#3ccf83; --bad:#ff6b6b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:14px 24px; border-bottom:1px solid var(--line); background:var(--card); }
+  header h1 { font-size:18px; margin:0; }
+  main { max-width:1100px; margin:0 auto; padding:24px; display:grid; gap:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .card h2 { font-size:15px; margin:0 0 12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .kv span { display:block; color:var(--muted); font-size:12px; }
+  .kv b { font-weight:600; word-break:break-all; }
+  input, select, button { font:inherit; padding:8px 11px; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  button { cursor:pointer; background:var(--acc); color:#fff; border-color:var(--acc); }
+  button.ghost { background:transparent; color:var(--fg); border-color:var(--line); }
+  button.danger { background:transparent; color:var(--bad); border-color:var(--bad); }
+  form.row { display:flex; gap:10px; flex-wrap:wrap; }
+  form.row input { flex:1; min-width:180px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  td.actions { white-space:nowrap; text-align:right; }
+  td.actions button { padding:5px 9px; margin-left:4px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--muted); }
+  .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); }
+  .muted { color:var(--muted); }
+  .err { color:var(--bad); min-height:1.4em; margin-top:8px; }
+  .center { min-height:80vh; display:flex; align-items:center; justify-content:center; }
+  .center .card { width:360px; }
+  .center .card.wide { width:560px; max-width:95vw; }
+  .ports { width:100%; margin:6px 0 4px; }
+  .ports td, .ports th { padding:6px 4px; border-bottom:none; }
+  .ports input[type=number] { width:100%; margin:0; }
+  .center .ports input[type=number] { margin:0; }
+  .ports input[type=checkbox] { width:auto; margin:0 6px 0 0; vertical-align:middle; }
+  .hint { color:var(--muted); font-size:12px; margin:2px 0 10px; }
+  .hostbox { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .hostbox h3 { font-size:14px; margin:0 0 6px; }
+  .hostrow { display:flex; gap:8px; flex-wrap:wrap; }
+  .hostrow input { flex:1; min-width:200px; font-size:16px; font-weight:600; margin:0 !important; width:auto !important; }
+  .hostrow button { width:auto !important; }
+  .warnbox { background:rgba(230,160,0,.14); border:1px solid rgba(230,160,0,.55); border-radius:7px; padding:8px 10px; margin-top:8px; font-size:13px; }
+  .okbox { color:var(--ok); font-size:13px; margin-top:8px; }
+  .center input { width:100%; margin-bottom:10px; }
+  .center button { width:100%; }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--fg); max-width:720px; width:95vw; padding:20px; }
+  dialog::backdrop { background:rgba(0,0,0,.5); }
+  .share { display:grid; grid-template-columns:320px 1fr; gap:18px; }
+  @media (max-width:700px) { .share { grid-template-columns:1fr; } }
+  .share img { width:100%; background:#fff; border-radius:8px; padding:8px; }
+  textarea { width:100%; min-height:110px; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; padding:8px; border-radius:7px; border:1px solid var(--line); background:var(--bg); color:var(--fg); resize:vertical; }
+  .tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .tabs button { padding:5px 10px; }
+  .tabs button:not(.on) { background:transparent; color:var(--fg); border-color:var(--line); }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .hidden { display:none !important; }
+  .modes { display:grid; gap:6px; margin-bottom:6px; }
+  .modes label { display:flex; gap:8px; align-items:flex-start; padding:8px 10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
+  .modes label.on { border-color:var(--acc); }
+  .modes input { margin-top:3px; }
+  .sect { border-top:1px solid var(--line); margin-top:14px; padding-top:12px; }
+  .sect h3 { font-size:14px; margin:0 0 8px; }
+  .subs td { padding:5px 4px; }
+  .subs input[type=text] { width:100%; padding:5px 7px; }
+  .subs select { padding:5px 6px; }
+  .subs .st { font-size:12px; min-width:150px; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:800px) { .two { grid-template-columns:1fr; } }
+  .opts { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px 18px; }
+  .opts label { display:block; }
+  .opts input[type=number], .opts input[type=text], .opts select { width:100%; margin-top:4px; }
+  .badge { display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; font-weight:600; }
+  .b-tunnel { background:rgba(47,111,237,.15); color:var(--acc); }
+  .b-direct { background:rgba(30,158,90,.15); color:var(--ok); }
+  .b-block { background:rgba(214,69,69,.15); color:var(--bad); }
+  .journal td { font-size:12px; padding:5px 6px; }
+  .journal { display:block; max-height:520px; overflow:auto; }
+</style>
+</head>
+<body>
+
+<div id="auth" class="center hidden">
+  <div class="card">
+    <h2 id="authTitle">Вход</h2>
+    <p id="authHint" class="muted"></p>
+    <form id="authForm">
+      <input id="pw1" type="password" placeholder="Пароль" autocomplete="current-password" required>
+      <input id="pw2" type="password" placeholder="Повторите пароль" autocomplete="new-password" class="hidden">
+      <div id="setupSettings" class="hidden"></div>
+      <button type="submit">Продолжить</button>
+      <div id="authErr" class="err"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Alatyr</h1>
+    <button class="ghost" id="logout">Выйти</button>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Апстрим</h2>
+      <div class="grid" id="status"></div>
+    </section>
+
+    <section class="card">
+      <h2>Маршрутизация</h2>
+      <div class="grid" id="rtStats" style="margin-bottom:12px"></div>
+      <form id="rtForm">
+        <div id="rtBox" class="muted">…</div>
+        <div class="btns"><button type="submit">Сохранить маршрутизацию</button></div>
+        <div id="rtErr" class="err"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Проверка и журнал соединений</h2>
+      <form class="row" id="checkForm">
+        <input id="checkQ" placeholder="домен или IP, например youtube.com или 149.154.167.50" autocomplete="off" spellcheck="false">
+        <button type="submit">Проверить</button>
+      </form>
+      <div id="checkRes" style="margin-top:8px"></div>
+      <div class="sect">
+        <form class="row" id="jForm">
+          <input id="jFilter" placeholder="фильтр: юзер, домен, IP, tunnel/direct/block" autocomplete="off">
+          <label class="muted" style="align-self:center"><input type="checkbox" id="jAuto"> обновлять</label>
+          <button type="submit" class="ghost">Обновить</button>
+        </form>
+        <table class="journal" style="margin-top:8px">
+          <thead><tr><th>Время</th><th>Юзер</th><th>Куда</th><th>Сайт</th><th>Маршрут</th><th>Правило</th></tr></thead>
+          <tbody id="jRows"></tbody>
+        </table>
+        <p id="jEmpty" class="muted hidden">Пусто. Журнал хранится только в памяти; размер задаётся в настройках маршрутизации (0 — выключен).</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Новый пользователь</h2>
+      <form class="row" id="createForm">
+        <input id="uname" placeholder="Имя (например, phone-vasya)" maxlength="64" required>
+        <select id="uproto"></select>
+        <button type="submit">Создать</button>
+      </form>
+      <div id="createErr" class="err"></div>
+    </section>
+
+    <section class="card">
+      <h2>Настройки подключения</h2>
+      <form id="settingsForm">
+        <div id="settingsBox"></div>
+        <div class="btns"><button type="submit">Сохранить</button></div>
+        <div id="settingsErr" class="err"></div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Проброс портов на роутере</h2>
+      <div id="fwdBox" class="muted">…</div>
+    </section>
+
+    <section class="card">
+      <h2>Пользователи</h2>
+      <table>
+        <thead><tr><th>Имя</th><th>Протокол</th><th>Адрес</th><th>Рукопожатие</th><th>Трафик ↓/↑</th><th></th></tr></thead>
+        <tbody id="users"></tbody>
+      </table>
+      <p id="noUsers" class="muted hidden">Пока никого. Создайте первого пользователя выше.</p>
+    </section>
+  </main>
+</div>
+
+<dialog id="shareDlg">
+  <h2 id="shareTitle" style="margin-top:0"></h2>
+  <p id="shareEp" style="margin-top:-6px"></p>
+  <div class="share">
+    <div>
+      <div class="tabs">
+        <button type="button" data-qr="conf" class="on">QR: конфиг</button>
+        <button type="button" data-qr="url">QR: vpn://</button>
+      </div>
+      <img id="qrImg" alt="QR">
+      <p class="muted" id="qrHint"></p>
+    </div>
+    <div>
+      <label class="muted">Ссылка для AmneziaVPN (вставить через «Добавить → Вставить ключ»)</label>
+      <textarea id="shareUrl" readonly></textarea>
+      <div class="btns"><button type="button" id="copyUrl">Скопировать ссылку</button></div>
+      <label class="muted" style="display:block;margin-top:14px">Конфиг (.conf для AmneziaWG / AmneziaVPN)</label>
+      <textarea id="shareConf" readonly style="min-height:180px"></textarea>
+      <div class="btns">
+        <button type="button" id="copyConf" class="ghost">Скопировать конфиг</button>
+        <a id="dlConf"><button type="button" class="ghost">Скачать .conf</button></a>
+      </div>
+    </div>
+  </div>
+  <div class="btns" style="justify-content:flex-end"><button type="button" class="ghost" id="closeDlg">Закрыть</button></div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (method, url, body) => {
+  const r = await fetch(url, {
+    method, credentials: 'same-origin',
+    headers: { 'X-Requested-With': 'alatyr', 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && url !== '/api/login') { showAuth(false); throw new Error(data.error || 'unauthorized'); }
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+};
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const bytes = (n) => { if (!n) return '0'; const u = ['B','KB','MB','GB','TB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0) + ' ' + u[i]; };
+const ago = (t) => {
+  if (!t || t.startsWith('0001')) return null;
+  const s = Math.max(0, Math.round((Date.now() - new Date(t)) / 1000));
+  if (s < 60) return s + ' с назад';
+  if (s < 3600) return Math.floor(s / 60) + ' мин назад';
+  if (s < 86400) return Math.floor(s / 3600) + ' ч назад';
+  return Math.floor(s / 86400) + ' дн назад';
+};
+const fresh = (t) => t && !t.startsWith('0001') && (Date.now() - new Date(t)) < 180000;
+
+let setupMode = false, timer = null, listeners = [];
+
+function showAuth(setup) {
+  setupMode = setup;
+  clearInterval(timer);
+  $('app').classList.add('hidden');
+  $('auth').classList.remove('hidden');
+  $('authTitle').textContent = setup ? 'Первый запуск' : 'Вход';
+  $('authHint').textContent = setup ? 'Задайте пароль администратора (минимум 8 символов). Он хранится только в виде bcrypt-хэша с солью.' : '';
+  $('pw2').classList.toggle('hidden', !setup);
+  $('setupSettings').classList.toggle('hidden', !setup);
+  document.querySelector('#auth .card').classList.toggle('wide', setup);
+  if (setup) api('GET', '/api/settings').then(d => renderSettings($('setupSettings'), d)).catch(() => {});
+  $('pw2').required = setup;
+  $('pw1').autocomplete = setup ? 'new-password' : 'current-password';
+  $('pw1').focus();
+}
+
+async function showApp() {
+  $('auth').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  loadSettings();
+  loadRouting();
+  loadJournal();
+  await refresh();
+  clearInterval(timer);
+  timer = setInterval(refresh, 5000);
+}
+
+$('authForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('authErr').textContent = '';
+  const pw = $('pw1').value;
+  if (setupMode && pw !== $('pw2').value) { $('authErr').textContent = 'Пароли не совпадают'; return; }
+  try {
+    const body = { password: pw };
+    if (setupMode) {
+      body.settings = readSettings($('setupSettings'));
+      if (Object.values(body.settings.listeners).some(l => !l.disabled && !l.port)) { $('authErr').textContent = 'Укажите внутренний порт для включённого протокола'; return; }
+    }
+    await api('POST', setupMode ? '/api/setup' : '/api/login', body);
+    $('pw1').value = $('pw2').value = '';
+    showApp();
+  } catch (err) { $('authErr').textContent = err.message; }
+};
+
+$('logout').onclick = async () => { await api('POST', '/api/logout').catch(() => {}); showAuth(false); };
+
+function renderSettings(box, d) {
+  box.innerHTML = `
+    <div class="hostbox">
+      <h3>Адрес сервера в конфигах и QR-кодах</h3>
+      <div class="hint" style="margin-top:0">Этот IP или домен прописывается в <b>Endpoint</b> всех конфигов, ссылок vpn:// и QR. Для подключения из интернета — внешний («белый») IP или домен роутера.</div>
+      <div class="hostrow">
+        <input data-f="host" value="${esc(d.public_host)}" placeholder="например 31.172.74.179 или myhome.ddns.net" autocomplete="off" spellcheck="false">
+        <button type="button" class="ghost" data-f="wan">Определить мой внешний IP</button>
+      </div>
+      <div data-f="hoststate"></div>
+    </div>
+    <table class="ports">
+      <thead><tr><th>Протокол</th><th>Внутренний UDP-порт</th><th>Внешний порт (в конфиге)</th></tr></thead>
+      <tbody>${d.listeners.map(l => `
+        <tr data-proto="${esc(l.protocol)}">
+          <td><label><input type="checkbox" data-f="on" ${l.disabled ? '' : 'checked'}>${esc(l.title)}</label></td>
+          <td><input type="number" min="1" max="65535" data-f="port" value="${l.port || ''}" placeholder="напр. 51822"></td>
+          <td><input type="number" min="1" max="65535" data-f="ext" value="${l.port && l.external_port !== l.port ? l.external_port : ''}" placeholder="= внутреннему"></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="hint">Внутренний — порт, который слушает ретранслятор. Внешний — порт, проброшенный на роутере на этот внутренний (если проброса нет — оставьте пустым). Смена внешнего адреса или порта требует заново выдать конфиги юзерам этого протокола.</div>`;
+  const host = box.querySelector('[data-f=host]');
+  const state = box.querySelector('[data-f=hoststate]');
+  const showState = () => {
+    state.innerHTML = host.value.trim()
+      ? `<div class="okbox">✓ В конфиги и QR пойдёт: <b>${esc(host.value.trim())}</b>${box === $('settingsBox') && host.value.trim() !== d.public_host ? ' — нажмите «Сохранить»' : ''}</div>`
+      : `<div class="warnbox">⚠ Адрес не задан — в конфиги подставится адрес этой страницы <b>${esc(d.detected_host)}</b>. Это локальный адрес: из интернета по такому конфигу не подключиться.</div>`;
+  };
+  host.oninput = showState; showState();
+  box.querySelector('[data-f=wan]').onclick = async (e) => {
+    const b = e.target; const t = b.textContent; b.textContent = 'Определяю…'; b.disabled = true;
+    try { host.value = (await api('GET', '/api/wan-ip')).ip; showState(); host.focus(); }
+    catch (ex) { state.innerHTML = `<div class="warnbox">${esc(ex.message)}</div>`; }
+    finally { b.textContent = t; b.disabled = false; }
+  };
+  box.querySelectorAll('tr[data-proto]').forEach(tr => {
+    const on = tr.querySelector('[data-f=on]');
+    const sync = () => tr.querySelectorAll('input[type=number]').forEach(i => i.disabled = !on.checked);
+    on.onchange = sync; sync();
+  });
+}
+
+async function loadSettings() {
+  try {
+    const d = await api('GET', '/api/settings');
+    renderSettings($('settingsBox'), d);
+    renderForwarding(d);
+  } catch (e) { /* handled by api() */ }
+}
+
+function renderForwarding(d) {
+  const ip = d.primary_ip || (d.lan_ips[0] || {}).ip || '?';
+  const others = d.lan_ips.filter(a => a.ip !== ip);
+  const rows = d.listeners.filter(l => !l.disabled && l.port);
+  const host = d.public_host || d.detected_host;
+  $('fwdBox').classList.remove('muted');
+  $('fwdBox').innerHTML = `
+    <p>Чтобы юзеры подключались из интернета, запрос должен прийти на роутер и уйти с него на этот компьютер.
+    Создайте в роутере правила <b>переадресации портов</b> (Port Forwarding / Virtual Server / «Переадресация» / NAT):</p>
+    <div class="grid" style="margin-bottom:10px">
+      <div class="kv"><span>IP этой машины в локальной сети (куда пробрасывать)</span><b>${esc(ip)}</b>
+        ${others.length ? `<div class="hint">другие адреса: ${others.map(a => esc(a.ip) + ' (' + esc(a.iface) + ')').join(', ')}</div>` : ''}</div>
+      <div class="kv"><span>Адрес в конфигах и QR сейчас</span><b>${esc(host)}</b>
+        <div class="hint">${d.public_host ? 'задан в настройках' : '⚠ не задан — подставляется локальный адрес, из интернета не сработает. Задайте его в «Настройках подключения».'}</div></div>
+    </div>
+    ${rows.length ? `<table>
+      <thead><tr><th>Название правила</th><th>Протокол</th><th>Внешний порт</th><th>Внутренний IP</th><th>Внутренний порт</th></tr></thead>
+      <tbody>${rows.map(l => `<tr><td>alatyr ${esc(l.title.replace('AmneziaWG ', 'awg'))}</td><td><b>UDP</b></td><td><b>${l.external_port}</b></td><td><b>${esc(ip)}</b></td><td><b>${l.port}</b></td></tr>`).join('')}</tbody>
+    </table>` : '<p class="muted">Нет включённых протоколов.</p>'}
+    <div class="hint" style="margin-top:10px">
+      • Протокол — только <b>UDP</b>. Веб-интерфейс (TCP ${location.port || 80}) пробрасывать не нужно и небезопасно.<br>
+      • Закрепите IP ${esc(ip)} за этим компьютером (DHCP-резервирование / «статический IP» в роутере), иначе после перезагрузки он может смениться и проброс перестанет работать.<br>
+      • В «Настройках подключения» впишите внешний IP или домен (DDNS) роутера — он попадёт в конфиги. Внешние порты там же.<br>
+      • Если внешний IP в настройках WAN роутера отличается от определённого кнопкой «Определить мой внешний IP» (или начинается с 10., 100.64–127., 172.16–31., 192.168.) — у провайдера CGNAT, проброс не заработает: нужен «белый» IP у провайдера.<br>
+      • Разрешите входящие UDP-порты ${rows.map(l => l.port).join(', ') || '—'} в файрволе этого компьютера.
+    </div>`;
+}
+
+function readSettings(box) {
+  const host = box.querySelector('[data-f=host]');
+  const out = { public_host: host ? host.value.trim() : '', listeners: {} };
+  box.querySelectorAll('tr[data-proto]').forEach(tr => {
+    const on = tr.querySelector('[data-f=on]').checked;
+    const port = parseInt(tr.querySelector('[data-f=port]').value, 10) || 0;
+    const ext = parseInt(tr.querySelector('[data-f=ext]').value, 10) || 0;
+    out.listeners[tr.dataset.proto] = { port, external_port: ext, disabled: !on };
+  });
+  return out;
+}
+
+$('settingsForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const err = $('settingsErr');
+  err.textContent = '';
+  const st = readSettings($('settingsBox'));
+  if (Object.values(st.listeners).some(l => !l.disabled && !l.port)) { err.textContent = 'Укажите внутренний порт для включённого протокола'; return; }
+  const btn = e.submitter; const t = btn.textContent;
+  try {
+    await api('POST', '/api/settings', st);
+    btn.textContent = 'Сохранено ✓'; setTimeout(() => btn.textContent = t, 1500);
+    await loadSettings();
+    refresh();
+  } catch (ex) { err.textContent = ex.message; }
+};
+
+async function refresh() {
+  try {
+    const [st, users] = await Promise.all([api('GET', '/api/status'), api('GET', '/api/users')]);
+    renderStatus(st);
+    renderUsers(users);
+    refreshRouting();
+    if ($('jAuto').checked) loadJournal();
+  } catch (e) { /* handled by api() */ }
+}
+
+function renderStatus(st) {
+  const s = st.upstream.stats || {};
+  const ok = fresh(s.last_handshake);
+  const all = st.listeners || [];
+  listeners = all.filter(l => l.running);
+  $('status').innerHTML = `
+    <div class="kv"><span>Состояние</span><b><i class="dot ${ok ? 'ok' : 'bad'}"></i>${ok ? 'подключено' : 'нет рукопожатия'}</b></div>
+    <div class="kv"><span>Сервер</span><b>${esc(st.upstream.endpoint)}</b></div>
+    <div class="kv"><span>Адрес в туннеле</span><b>${esc(st.upstream.address)}</b></div>
+    <div class="kv"><span>Рукопожатие</span><b>${esc(ago(s.last_handshake) || '—')}</b></div>
+    <div class="kv"><span>Трафик ↓/↑</span><b>${bytes(s.rx_bytes)} / ${bytes(s.tx_bytes)}</b></div>
+    <div class="kv"><span>NAT-сессий (ping${st.mode === 'full' ? ' и весь трафик' : ''})</span><b>${st.nat_mappings}</b></div>
+    <div class="kv"><span>Адрес для клиентов</span><b>${esc(st.public_host)}</b></div>
+    <div class="kv"><span>Порты (UDP): внутренний → в конфигах</span><b>${all.map(l => esc(l.title) + ': ' + (l.running ? l.port + (l.external_port !== l.port ? ' → ' + l.external_port : '') : (l.disabled ? 'выключен' : l.port + ' — не запущен (порт занят?)'))).join('<br>')}</b></div>`;
+  const sel = $('uproto');
+  const key = listeners.map(l => l.protocol).join();
+  if (sel.dataset.key !== key) {
+    sel.dataset.key = key;
+    sel.innerHTML = listeners.map(l => `<option value="${esc(l.protocol)}">${esc(l.title)}</option>`).join('');
+    const awg2 = listeners.find(l => l.protocol === 'awg2');
+    if (awg2) sel.value = 'awg2';
+  }
+}
+
+function renderUsers(users) {
+  $('noUsers').classList.toggle('hidden', users.length > 0);
+  $('users').innerHTML = users.map(u => {
+    const s = u.stats || {};
+    const hs = ago(s.last_handshake);
+    return `<tr>
+      <td><i class="dot ${u.disabled ? '' : (fresh(s.last_handshake) ? 'ok' : '')}"></i>${esc(u.name)}${u.disabled ? ' <span class="muted">(выключен)</span>' : ''}</td>
+      <td>${esc(u.title)}</td>
+      <td>${esc(u.address)}</td>
+      <td class="muted">${esc(hs || 'никогда')}</td>
+      <td>${bytes(s.tx_bytes)} / ${bytes(s.rx_bytes)}</td>
+      <td class="actions">
+        <button data-act="share" data-id="${u.id}">Подключение</button>
+        <button class="ghost" data-act="toggle" data-id="${u.id}" data-dis="${u.disabled}">${u.disabled ? 'Включить' : 'Выключить'}</button>
+        <button class="danger" data-act="del" data-id="${u.id}" data-name="${esc(u.name)}">Удалить</button>
+      </td></tr>`;
+  }).join('');
+}
+
+$('users').onclick = async (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const id = b.dataset.id;
+  try {
+    if (b.dataset.act === 'share') await openShare(id);
+    if (b.dataset.act === 'toggle') { await api('POST', `/api/users/${id}/disabled`, { disabled: b.dataset.dis !== 'true' }); refresh(); }
+    if (b.dataset.act === 'del' && confirm(`Удалить пользователя «${b.dataset.name}»? Его конфиг перестанет работать.`)) { await api('DELETE', `/api/users/${id}`); refresh(); }
+  } catch (err) { alert(err.message); }
+};
+
+$('createForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('createErr').textContent = '';
+  try {
+    const r = await api('POST', '/api/users', { name: $('uname').value, protocol: $('uproto').value });
+    $('uname').value = '';
+    await refresh();
+    openShare(r.id);
+  } catch (err) { $('createErr').textContent = err.message; }
+};
+
+// --- routing ---
+const MODES = [
+  ['lists', 'Списки → через VPN, остальное напрямую', 'Сайты из подписок и «Моих дополнений» идут через VPN, всё остальное — напрямую с IP этой машины. Экономит трафик VPN.'],
+  ['except', 'Всё через VPN, кроме исключений', 'Через VPN идёт всё, напрямую — только «Мои исключения» и подписки с действием «напрямую».'],
+  ['full', 'Всё через VPN без разбора (как раньше)', 'Пакетный NAT, правила не применяются. Самый быстрый режим.'],
+];
+const ACT = { tunnel: 'VPN', direct: 'напрямую', block: 'блок' };
+const badge = (a) => `<span class="badge b-${esc(a)}">${esc(ACT[a] || a)}</span>`;
+let rt = null, rtStatuses = {};
+
+async function loadRouting() {
+  try {
+    const d = await api('GET', '/api/routing');
+    rt = d; rtStatuses = d.statuses || {};
+    renderRouting();
+  } catch (e) { $('rtBox').textContent = e.message; }
+}
+
+function subStatus(id) {
+  const s = rtStatuses[id];
+  if (!s) return '<span class="muted">не скачана</span>';
+  let out = s.updating ? 'скачиваю…' : (s.loaded ? `${s.rules} правил, ${esc(ago(s.updated) || '')}` : 'не скачана');
+  if (s.loaded && s.ignored) out += `<br><span class="muted">${s.ignored} строк не понято</span>`;
+  if (s.error) out += `<br><span style="color:var(--bad)">${esc(s.error)}</span>`;
+  return out;
+}
+
+function subRow(s) {
+  return `<tr data-id="${esc(s.id || '')}">
+    <td><input type="checkbox" data-f="enabled" ${s.enabled ? 'checked' : ''}></td>
+    <td><input type="text" data-f="name" value="${esc(s.name || '')}" placeholder="название">${s.note ? `<div class="hint">${esc(s.note)}</div>` : ''}</td>
+    <td><input type="text" data-f="url" value="${esc(s.url || '')}" placeholder="https://…" spellcheck="false"></td>
+    <td><select data-f="action"><option value="tunnel">через VPN</option><option value="direct" ${s.action === 'direct' ? 'selected' : ''}>напрямую</option></select></td>
+    <td><select data-f="via"><option value="tunnel">через VPN</option><option value="direct" ${s.via === 'direct' ? 'selected' : ''}>напрямую</option></select></td>
+    <td class="st" data-st>${subStatus(s.id)}</td>
+    <td class="actions"><button type="button" class="ghost" data-act="upd">Обновить</button><button type="button" class="danger" data-act="rm">✕</button></td>
+  </tr>`;
+}
+
+function renderRouting() {
+  const st = rt.settings;
+  const box = $('rtBox');
+  box.classList.remove('muted');
+  const presetsLeft = () => rt.presets.filter(p => ![...box.querySelectorAll('.subs tr[data-id]')].some(tr => tr.dataset.id === p.id));
+  box.innerHTML = `
+    <div class="modes">${MODES.map(([v, t, h]) => `<label class="${st.mode === v ? 'on' : ''}"><input type="radio" name="mode" value="${v}" ${st.mode === v ? 'checked' : ''}><span><b>${t}</b><br><span class="muted">${h}</span></span></label>`).join('')}</div>
+    <div class="sect">
+      <h3>Подписки на списки</h3>
+      <div class="hint">Форматы определяются сами: ABP/gfwlist (в т.ч. base64), список доменов, подсети, hosts, domain:/full:/keyword:, DOMAIN-SUFFIX,… «Действие» — куда пускать совпавшее, «Качать» — через VPN или напрямую.</div>
+      <table class="subs"><thead><tr><th></th><th>Название</th><th>Адрес списка</th><th>Действие</th><th>Качать</th><th>Состояние</th><th></th></tr></thead>
+        <tbody id="subRows">${st.subscriptions.map(subRow).join('')}</tbody></table>
+      <div class="btns">
+        <button type="button" class="ghost" id="subAdd">+ Своя подписка</button>
+        <select id="presetSel"></select><button type="button" class="ghost" id="presetAdd">+ Из заготовок</button>
+        <button type="button" class="ghost" id="subUpdAll">Обновить все сейчас</button>
+      </div>
+      <div class="opts" style="margin-top:10px">
+        <label><input type="checkbox" data-o="auto_update" ${st.auto_update ? 'checked' : ''}> Автообновление подписок
+          <div class="hint">Выключено — список качается один раз (при первом запуске или когда подписку включили) и дальше только по кнопке «Обновить».</div></label>
+        <label>Интервал автообновления, часов<input type="number" min="1" max="720" data-o="update_hours" value="${st.update_hours}"></label>
+      </div>
+    </div>
+    <div class="sect two">
+      <div><h3>Мои дополнения — всегда через VPN</h3>
+        <textarea data-o="tunnel" spellcheck="false" style="min-height:160px">${esc(st.tunnel)}</textarea>
+        <div class="hint">${rt.own.tunnel.rules} правил${rt.own.tunnel.ignored ? `, <b>${rt.own.tunnel.ignored} строк не понято</b>` : ''}. Домен (вместе с поддоменами), *.домен, full:точный.хост, IP, подсеть; # — комментарий.</div></div>
+      <div><h3>Мои исключения — всегда напрямую</h3>
+        <textarea data-o="direct" spellcheck="false" style="min-height:160px">${esc(st.direct)}</textarea>
+        <div class="hint">${rt.own.direct.rules} правил${rt.own.direct.ignored ? `, <b>${rt.own.direct.ignored} строк не понято</b>` : ''}. Важнее всех остальных правил и подписок.</div></div>
+    </div>
+    <div class="sect">
+      <h3>DNS и тонкие настройки</h3>
+      <div class="opts">
+        <label>DNS для сайтов через VPN (через туннель)<input type="text" data-o="dns_tunnel" value="${esc((st.dns_tunnel || []).join(', '))}" placeholder="1.1.1.1, 8.8.8.8">
+          <div class="hint">Имена из правил резолвятся через VPN — без утечек и подмены ответов.</div></label>
+        <label>DNS для остальных (напрямую)<input type="text" data-o="dns_direct" value="${esc((st.dns_direct || []).join(', '))}" placeholder="пусто = системный DNS этой машины">
+          <div class="hint">Например 77.88.8.8 или 1.1.1.1. Пусто — резолвер ОС.</div></label>
+        <label>QUIC (HTTP/3, UDP 443)<select data-o="block_quic">
+            <option value="unknown" ${st.block_quic === 'unknown' ? 'selected' : ''}>блокировать, если имя сайта не прочитать</option>
+            <option value="allow" ${st.block_quic === 'allow' ? 'selected' : ''}>разрешать всегда</option>
+            <option value="block" ${st.block_quic === 'block' ? 'selected' : ''}>блокировать всегда (браузеры уйдут на TCP)</option></select></label>
+        <label>Ожидание имени сайта в начале соединения, мс<input type="number" min="50" max="5000" data-o="sniff_timeout_ms" value="${st.sniff_timeout_ms}"></label>
+        <label>Журнал соединений, записей (0 — выключен)<input type="number" min="0" max="10000" data-o="journal_size" value="${st.journal_size}">
+          <div class="hint">Только в памяти, после перезапуска пропадает.</div></label>
+        <label><input type="checkbox" data-o="block_doh" ${st.block_doh ? 'checked' : ''}> Блокировать DoH/DoT (dns.google, cloudflare-dns и т.п.)
+          <div class="hint">Браузеры вернутся на наш DNS, и решения по доменам станут точнее.</div></label>
+        <label><input type="checkbox" data-o="allow_lan" ${st.allow_lan ? 'checked' : ''}> Пускать юзеров в локальную сеть этой машины
+          <div class="hint">Выключено — прямые соединения на 192.168.x, 10.x и т.п. запрещены.</div></label>
+      </div>
+    </div>`;
+  box.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () =>
+    box.querySelectorAll('.modes label').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)));
+  const fillPresets = () => {
+    const left = presetsLeft();
+    $('presetSel').innerHTML = left.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('') || '<option value="">все заготовки уже добавлены</option>';
+  };
+  fillPresets();
+  $('subAdd').onclick = () => { $('subRows').insertAdjacentHTML('beforeend', subRow({ enabled: true, action: 'tunnel', via: 'tunnel' })); };
+  $('presetAdd').onclick = () => {
+    const p = rt.presets.find(x => x.id === $('presetSel').value);
+    if (p) { $('subRows').insertAdjacentHTML('beforeend', subRow({ ...p, enabled: true })); fillPresets(); }
+  };
+  $('subRows').onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const tr = b.closest('tr');
+    if (b.dataset.act === 'rm') { tr.remove(); fillPresets(); return; }
+    if (b.dataset.act === 'upd') {
+      if (!tr.dataset.id || !rt.settings.subscriptions.some(s => s.id === tr.dataset.id)) { alert('Сначала сохраните маршрутизацию.'); return; }
+      try { await api('POST', '/api/routing/update', { id: tr.dataset.id }); refreshRouting(); } catch (ex) { alert(ex.message); }
+    }
+  };
+  $('subUpdAll').onclick = async () => { try { await api('POST', '/api/routing/update', {}); refreshRouting(); } catch (ex) { alert(ex.message); } };
+}
+
+function readRouting() {
+  const box = $('rtBox');
+  const o = (k) => box.querySelector(`[data-o=${k}]`);
+  const list = (k) => o(k).value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+  return {
+    mode: box.querySelector('input[name=mode]:checked').value,
+    subscriptions: [...box.querySelectorAll('#subRows tr')].map(tr => {
+      const f = (k) => tr.querySelector(`[data-f=${k}]`);
+      const pre = rt.presets.find(p => p.id === tr.dataset.id);
+      return { id: tr.dataset.id || '', name: f('name').value.trim(), url: f('url').value.trim(), enabled: f('enabled').checked,
+        action: f('action').value, via: f('via').value, note: pre ? pre.note : '' };
+    }),
+    tunnel: o('tunnel').value, direct: o('direct').value,
+    dns_tunnel: list('dns_tunnel'), dns_direct: list('dns_direct'),
+    block_quic: o('block_quic').value, block_doh: o('block_doh').checked, allow_lan: o('allow_lan').checked,
+    sniff_timeout_ms: parseInt(o('sniff_timeout_ms').value, 10) || 0,
+    auto_update: o('auto_update').checked, update_hours: parseInt(o('update_hours').value, 10) || 0,
+    journal_size: parseInt(o('journal_size').value, 10) || 0,
+  };
+}
+
+$('rtForm').onsubmit = async (e) => {
+  e.preventDefault();
+  $('rtErr').textContent = '';
+  const btn = e.submitter; const t = btn.textContent;
+  try {
+    await api('POST', '/api/routing', readRouting());
+    btn.textContent = 'Сохранено ✓'; setTimeout(() => btn.textContent = t, 1500);
+    await loadRouting();
+    refreshRouting();
+  } catch (ex) { $('rtErr').textContent = ex.message; }
+};
+
+async function refreshRouting() {
+  try {
+    const d = await api('GET', '/api/routing/stats');
+    rtStatuses = d.statuses || {};
+    document.querySelectorAll('#subRows tr[data-id]').forEach(tr => { const c = tr.querySelector('[data-st]'); if (c && tr.dataset.id) c.innerHTML = subStatus(tr.dataset.id); });
+    const s = d.stats;
+    const mode = rt ? rt.settings.mode : '';
+    $('rtStats').innerHTML = mode === 'full'
+      ? `<div class="kv"><span>Режим</span><b>всё через VPN (пакетный NAT)</b></div><div class="kv"><span>DNS-кэш (IP → имя)</span><b>${s.dns_cache}</b></div>`
+      : `<div class="kv"><span>Через VPN: соединений (активных)</span><b>${s.tunnel.conns} (${s.tunnel.active})</b></div>
+         <div class="kv"><span>Через VPN: трафик ↓/↑</span><b>${bytes(s.tunnel.down)} / ${bytes(s.tunnel.up)}</b></div>
+         <div class="kv"><span>Напрямую: соединений (активных)</span><b>${s.direct.conns} (${s.direct.active})</b></div>
+         <div class="kv"><span>Напрямую: трафик ↓/↑</span><b>${bytes(s.direct.down)} / ${bytes(s.direct.up)}</b></div>
+         <div class="kv"><span>Заблокировано / ошибок</span><b>${s.blocked} / ${s.failed}</b></div>
+         <div class="kv"><span>DNS-кэш (IP → имя)</span><b>${s.dns_cache}</b></div>`;
+  } catch (e) { /* handled by api() */ }
+}
+
+$('checkForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const out = $('checkRes');
+  try {
+    const r = await api('GET', '/api/routing/check?q=' + encodeURIComponent($('checkQ').value));
+    const d = r.decision;
+    out.innerHTML = `${badge(d.action)} ${d.host ? '<b>' + esc(d.host) + '</b> — ' : ''}${d.rule ? 'правило <code>' + esc(d.rule) + '</code> из «' + esc(d.source) + '»' : esc(d.source || '')}`
+      + (r.names && r.names.length ? `<div class="hint">этот IP недавно резолвился как: ${r.names.map(esc).join(', ')}</div>` : '');
+  } catch (ex) { out.innerHTML = `<span class="err">${esc(ex.message)}</span>`; }
+};
+
+const FROM = { sni: 'SNI', http: 'Host', quic: 'QUIC', dns: 'DNS' };
+async function loadJournal() {
+  try {
+    const rows = await api('GET', '/api/routing/journal?limit=300&filter=' + encodeURIComponent($('jFilter').value));
+    $('jEmpty').classList.toggle('hidden', rows.length > 0);
+    $('jRows').innerHTML = rows.map(e => `<tr>
+      <td class="muted">${esc(new Date(e.time).toLocaleTimeString())}</td>
+      <td>${esc(e.user)}</td>
+      <td>${esc(e.proto)} ${esc(e.dst)}</td>
+      <td>${e.host ? esc(e.host) + ` <span class="muted">(${esc(FROM[e.host_from] || e.host_from || '')})</span>` : '<span class="muted">—</span>'}</td>
+      <td>${badge(e.action)}${e.error ? ` <span style="color:var(--bad)">${esc(e.error)}</span>` : ''}</td>
+      <td class="muted">${e.rule ? esc(e.rule) + ' · ' : ''}${esc(e.source || '')}</td></tr>`).join('');
+  } catch (e) { /* handled by api() */ }
+}
+$('jForm').onsubmit = (e) => { e.preventDefault(); loadJournal(); };
+
+let shareId = null;
+async function openShare(id) {
+  const d = await api('GET', `/api/users/${id}/share`);
+  shareId = id;
+  $('shareTitle').textContent = d.name;
+  $('shareEp').innerHTML = `Сервер в конфиге и QR: <b>${esc(d.endpoint)}</b>` + (d.host_set ? ''
+    : `<div class="warnbox">⚠ Внешний адрес не задан в «Настройках подключения» — подставлен адрес этой страницы. Из интернета такой конфиг не подключится.</div>`);
+  $('shareUrl').value = d.url;
+  $('shareConf').value = d.config;
+  $('dlConf').href = `/api/users/${id}/config`;
+  $('dlConf').download = d.filename;
+  setQR('conf');
+  $('shareDlg').showModal();
+}
+function setQR(type) {
+  document.querySelectorAll('[data-qr]').forEach(b => b.classList.toggle('on', b.dataset.qr === type));
+  $('qrImg').src = `/api/users/${shareId}/qr.png?type=${type}&t=${Date.now()}`;
+  $('qrHint').textContent = type === 'conf'
+    ? 'Сканируйте в AmneziaWG (или AmneziaVPN) — «Добавить туннель → QR-код».'
+    : 'Сканируйте в AmneziaVPN — «Добавить → QR-код».';
+}
+document.querySelectorAll('[data-qr]').forEach(b => b.onclick = () => setQR(b.dataset.qr));
+const copy = async (el, btn) => {
+  try { await navigator.clipboard.writeText(el.value); } catch { el.select(); document.execCommand('copy'); }
+  const t = btn.textContent; btn.textContent = 'Скопировано ✓'; setTimeout(() => btn.textContent = t, 1200);
+};
+$('copyUrl').onclick = (e) => copy($('shareUrl'), e.target);
+$('copyConf').onclick = (e) => copy($('shareConf'), e.target);
+$('closeDlg').onclick = () => $('shareDlg').close();
+
+(async () => {
+  const st = await api('GET', '/api/state');
+  if (st.setup_needed) showAuth(true);
+  else if (st.logged_in) showApp();
+  else showAuth(false);
+})();
+</script>
+</body>
+</html>

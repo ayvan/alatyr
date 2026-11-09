@@ -1,0 +1,43 @@
+# alatyr configuration. Relative paths are relative to this file.
+
+# Upstream AmneziaWG config (1.0 / 1.5 / 2.0 / 3.x) Alatyr connects to.
+vpn: vpn.conf
+
+# Web UI port (listens on all interfaces).
+http_port: 8080
+# http_listen: 0.0.0.0     # set 127.0.0.1 to allow the web UI only locally
+
+# NOTE: public_host and ports below are only the INITIAL defaults. They are
+# asked for on the first web UI setup and later edited in the web UI
+# ("Настройки подключения"); the saved values in data_file win.
+
+# Host/IP put into user configs as Endpoint. Empty = the host you used to
+# open the web UI (e.g. http://192.168.1.10:8080 -> 192.168.1.10).
+public_host: ""
+
+# Internal UDP ports of inbound protocols. 0 or removed = disabled.
+# External (router-forwarded) ports are set in the web UI.
+ports:
+  awg1: 51821   # AmneziaWG 1.0
+  awg2: 51822   # AmneziaWG 2.0
+  awg3: 51823   # AmneziaWG 3.1
+
+# Users' internal subnet; .1 is the relay itself.
+subnet: 10.66.66.0/24
+
+# Initial "DNS through the tunnel" for routed names (default: DNS from
+# vpn.conf); later edited in the web UI. Users get DNS 10.66.66.1 (Alatyr).
+# dns: [1.1.1.1, 8.8.8.8]
+
+# Split routing (mode, subscriptions, own lists, DNS, QUIC/DoH...) is set up
+# in the web UI ("Маршрутизация"). Downloaded subscriptions are cached here:
+# lists_dir: lists-cache
+
+# MTU for user configs (default: MTU from vpn.conf, or 1280).
+# mtu: 1280
+
+# State: users, keys, admin password hash. Keep it private.
+data_file: alatyr-data.json
+
+log_level: info        # info | debug
+# log_file: alatyr.log
