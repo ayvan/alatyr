@@ -577,6 +577,7 @@ func (s *Server) share(w http.ResponseWriter, r *http.Request) {
 	st := s.opts.Store.Settings()
 	writeJSON(w, map[string]any{
 		"name": u.Name, "filename": fileName(u.Name), "config": conf, "url": awgconf.AmneziaURL(conf),
+		"protocol": u.Protocol,
 		"endpoint": net.JoinHostPort(s.endpointHost(r), strconv.Itoa(st.Listeners[u.Protocol].Endpoint())),
 		"host_set": st.PublicHost != "",
 	})

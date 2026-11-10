@@ -141,6 +141,17 @@ func Open(path string, subnet netip.Prefix, defaults Settings, routing Routing) 
 		d := defaults.clone()
 		s.d.Settings = &d
 		save = true
+	} else {
+		// Protocols added in newer versions get their default listener.
+		if s.d.Settings.Listeners == nil {
+			s.d.Settings.Listeners = map[string]Listener{}
+		}
+		for proto, l := range defaults.Listeners {
+			if _, ok := s.d.Settings.Listeners[proto]; !ok {
+				s.d.Settings.Listeners[proto] = l
+				save = true
+			}
+		}
 	}
 	if s.d.Routing == nil {
 		r := routing.clone()

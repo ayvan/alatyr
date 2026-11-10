@@ -88,6 +88,11 @@ func run(cfgPath string) error {
 	for proto, port := range cfg.Ports {
 		defaults.Listeners[proto] = store.Listener{Port: port}
 	}
+	// Plain WireGuard is opt-in: unless config.yaml lists it, it starts
+	// disabled with a random port prefilled for the web UI.
+	if _, ok := cfg.Ports[awgconf.ProtoWG]; !ok {
+		defaults.Listeners[awgconf.ProtoWG] = store.Listener{Port: freePort(cfg.Ports), Disabled: true}
+	}
 	// dns (config.yaml or vpn.conf) is the initial resolver for names routed
 	// to the tunnel; it is edited in the web UI afterwards.
 	st, err := store.Open(cfg.Path(cfg.DataFile), cfg.SubnetPrefix(), defaults, store.DefaultRouting(dns))
@@ -145,4 +150,19 @@ func run(cfgPath string) error {
 	defer cancel()
 	srv.Shutdown(ctx)
 	return nil
+}
+
+// freePort picks a random free UDP port not used by other protocols.
+func freePort(used map[string]int) int {
+	taken := map[int]bool{}
+	for _, p := range used {
+		taken[p] = true
+	}
+	for {
+		for _, p := range config.RandomPorts("x") {
+			if !taken[p] {
+				return p
+			}
+		}
+	}
 }

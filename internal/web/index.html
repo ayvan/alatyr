@@ -186,16 +186,18 @@
     <div>
       <div class="tabs">
         <button type="button" data-qr="conf" class="on">QR: конфиг</button>
-        <button type="button" data-qr="url">QR: vpn://</button>
+        <button type="button" data-qr="url" class="awgOnly">QR: vpn://</button>
       </div>
       <img id="qrImg" alt="QR">
       <p class="muted" id="qrHint"></p>
     </div>
     <div>
-      <label class="muted">Ссылка для AmneziaVPN (вставить через «Добавить → Вставить ключ»)</label>
-      <textarea id="shareUrl" readonly></textarea>
-      <div class="btns"><button type="button" id="copyUrl">Скопировать ссылку</button></div>
-      <label class="muted" style="display:block;margin-top:14px">Конфиг (.conf для AmneziaWG / AmneziaVPN)</label>
+      <div class="awgOnly">
+        <label class="muted">Ссылка для AmneziaVPN (вставить через «Добавить → Вставить ключ»)</label>
+        <textarea id="shareUrl" readonly></textarea>
+        <div class="btns"><button type="button" id="copyUrl">Скопировать ссылку</button></div>
+      </div>
+      <label class="muted" style="display:block;margin-top:14px" id="confLabel">Конфиг (.conf для AmneziaWG / AmneziaVPN)</label>
       <textarea id="shareConf" readonly style="min-height:180px"></textarea>
       <div class="btns">
         <button type="button" id="copyConf" class="ghost">Скопировать конфиг</button>
@@ -300,7 +302,7 @@ function renderSettings(box, d) {
         </tr>`).join('')}
       </tbody>
     </table>
-    <div class="hint">Внутренний — порт, который слушает ретранслятор. Внешний — порт, проброшенный на роутере на этот внутренний (если проброса нет — оставьте пустым). Смена внешнего адреса или порта требует заново выдать конфиги юзерам этого протокола.</div>`;
+    <div class="hint">Внутренний — порт, который слушает ретранслятор. Внешний — порт, проброшенный на роутере на этот внутренний (если проброса нет — оставьте пустым). Смена внешнего адреса или порта требует заново выдать конфиги юзерам этого протокола.<br>WireGuard — обычный протокол без обфускации: подходит для штатного приложения WireGuard и роутеров (Keenetic, MikroTik, OpenWrt), но легко распознаётся и блокируется DPI.</div>`;
   const host = box.querySelector('[data-f=host]');
   const state = box.querySelector('[data-f=hoststate]');
   const showState = () => {
@@ -347,7 +349,7 @@ function renderForwarding(d) {
     </div>
     ${rows.length ? `<table>
       <thead><tr><th>Название правила</th><th>Протокол</th><th>Внешний порт</th><th>Внутренний IP</th><th>Внутренний порт</th></tr></thead>
-      <tbody>${rows.map(l => `<tr><td>alatyr ${esc(l.title.replace('AmneziaWG ', 'awg'))}</td><td><b>UDP</b></td><td><b>${l.external_port}</b></td><td><b>${esc(ip)}</b></td><td><b>${l.port}</b></td></tr>`).join('')}</tbody>
+      <tbody>${rows.map(l => `<tr><td>alatyr ${esc(l.protocol)}</td><td><b>UDP</b></td><td><b>${l.external_port}</b></td><td><b>${esc(ip)}</b></td><td><b>${l.port}</b></td></tr>`).join('')}</tbody>
     </table>` : '<p class="muted">Нет включённых протоколов.</p>'}
     <div class="hint" style="margin-top:10px">
       • Протокол — только <b>UDP</b>. Веб-интерфейс (TCP ${location.port || 80}) пробрасывать не нужно и небезопасно.<br>
@@ -652,10 +654,15 @@ async function loadJournal() {
 }
 $('jForm').onsubmit = (e) => { e.preventDefault(); loadJournal(); };
 
-let shareId = null;
+let shareId = null, shareWG = false;
 async function openShare(id) {
   const d = await api('GET', `/api/users/${id}/share`);
   shareId = id;
+  shareWG = d.protocol === 'wg';
+  document.querySelectorAll('#shareDlg .awgOnly').forEach(el => el.classList.toggle('hidden', shareWG));
+  $('confLabel').textContent = shareWG
+    ? 'Конфиг (.conf для WireGuard, AmneziaWG или AmneziaVPN)'
+    : 'Конфиг (.conf для AmneziaWG / AmneziaVPN)';
   $('shareTitle').textContent = d.name;
   $('shareEp').innerHTML = `Сервер в конфиге и QR: <b>${esc(d.endpoint)}</b>` + (d.host_set ? ''
     : `<div class="warnbox">⚠ Внешний адрес не задан в «Настройках подключения» — подставлен адрес этой страницы. Из интернета такой конфиг не подключится.</div>`);
@@ -669,7 +676,9 @@ async function openShare(id) {
 function setQR(type) {
   document.querySelectorAll('[data-qr]').forEach(b => b.classList.toggle('on', b.dataset.qr === type));
   $('qrImg').src = `/api/users/${shareId}/qr.png?type=${type}&t=${Date.now()}`;
-  $('qrHint').textContent = type === 'conf'
+  $('qrHint').textContent = shareWG
+    ? 'Сканируйте в приложении WireGuard (или AmneziaWG) — «Добавить туннель → QR-код».'
+    : type === 'conf'
     ? 'Сканируйте в AmneziaWG (или AmneziaVPN) — «Добавить туннель → QR-код».'
     : 'Сканируйте в AmneziaVPN — «Добавить → QR-код».';
 }

@@ -11,10 +11,11 @@ const (
 	ProtoAWG1 = "awg1" // AmneziaWG 1.0
 	ProtoAWG2 = "awg2" // AmneziaWG 2.0
 	ProtoAWG3 = "awg3" // AmneziaWG 3.1
+	ProtoWG   = "wg"   // plain WireGuard (no obfuscation)
 )
 
 // Protocols lists supported inbound protocols in display order.
-var Protocols = []string{ProtoAWG1, ProtoAWG2, ProtoAWG3}
+var Protocols = []string{ProtoAWG1, ProtoAWG2, ProtoAWG3, ProtoWG}
 
 // ProtocolTitle returns a human readable protocol name.
 func ProtocolTitle(p string) string {
@@ -25,6 +26,8 @@ func ProtocolTitle(p string) string {
 		return "AmneziaWG 2.0"
 	case ProtoAWG3:
 		return "AmneziaWG 3.1"
+	case ProtoWG:
+		return "WireGuard"
 	}
 	return p
 }
@@ -37,8 +40,13 @@ func rnd(lo, hi int) int { return lo + rand.IntN(hi-lo+1) }
 func itoa(n int) string { return strconv.Itoa(n) }
 
 // GenerateParams creates a fresh random obfuscation profile for a protocol.
+// Plain WireGuard gets an empty profile: amneziawg-go with no obfuscation
+// parameters is wire-compatible with stock WireGuard clients.
 func GenerateParams(proto string) (map[string]string, error) {
 	p := map[string]string{}
+	if proto == ProtoWG {
+		return p, nil
+	}
 	jmin := rnd(20, 60)
 	p["Jc"] = itoa(rnd(4, 8))
 	p["Jmin"] = itoa(jmin)

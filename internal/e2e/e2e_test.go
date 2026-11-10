@@ -56,7 +56,7 @@ func TestRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 	subnet := netip.MustParsePrefix("10.66.66.0/24")
-	ports := map[string]int{awgconf.ProtoAWG1: 41821, awgconf.ProtoAWG2: 41822, awgconf.ProtoAWG3: 41823}
+	ports := map[string]int{awgconf.ProtoAWG1: 41821, awgconf.ProtoAWG2: 41822, awgconf.ProtoAWG3: 41823, awgconf.ProtoWG: 41824}
 	defaults := store.Settings{Listeners: map[string]store.Listener{}}
 	for p, port := range ports {
 		defaults.Listeners[p] = store.Listener{Port: port}

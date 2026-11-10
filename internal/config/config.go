@@ -33,7 +33,7 @@ type Config struct {
 	DNS []string `yaml:"dns"`
 	// MTU for user configs (default: upstream MTU or 1280).
 	MTU int `yaml:"mtu"`
-	// Ports maps protocol (awg1, awg2, awg3) to UDP listen port; 0 disables.
+	// Ports maps protocol (awg1, awg2, awg3, wg) to UDP listen port; 0 disables.
 	// Without the section every protocol gets a random free port (used only
 	// on the first start, then the saved settings win).
 	Ports map[string]int `yaml:"ports"`
@@ -88,7 +88,7 @@ func Load(path string) (*Config, error) {
 	}
 	for proto, port := range c.Ports {
 		if awgconf.ProtocolTitle(proto) == proto {
-			return nil, fmt.Errorf("ports: unknown protocol %q (use awg1, awg2, awg3)", proto)
+			return nil, fmt.Errorf("ports: unknown protocol %q (use awg1, awg2, awg3, wg)", proto)
 		}
 		if port < 0 || port > 65535 {
 			return nil, fmt.Errorf("ports: bad port %d for %s", port, proto)
